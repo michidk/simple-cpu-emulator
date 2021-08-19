@@ -78,6 +78,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "cpu"
+version = "0.1.0"
+dependencies = [
+ "color-eyre",
+]
+
+[[package]]
 name = "eyre"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -185,13 +192,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "740223c51853f3145fe7c90360d2d4232f2b62e3449489c207eccde818979982"
 dependencies = [
  "lazy_static",
-]
-
-[[package]]
-name = "simple-cpu-emulator"
-version = "0.1.0"
-dependencies = [
- "color-eyre",
 ]
 
 [[package]]
