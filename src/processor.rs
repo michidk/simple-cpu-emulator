@@ -11,6 +11,8 @@ pub enum Instruction {
     LOADC,
     /// Add two registers
     ADD,
+    /// Negates an integer
+    NEG
 }
 
 impl From<Byte> for Instruction {
@@ -21,6 +23,7 @@ impl From<Byte> for Instruction {
             0x01 => Instruction::HCF,
             0x02 => Instruction::LOADC,
             0x03 => Instruction::ADD,
+            0x04 => Instruction::NEG,
             _ => panic!("Unknown opcode: 0x{:04X}", byte),
         }
     }
@@ -64,31 +67,46 @@ impl Processor {
         match instruction {
             Instruction::NOP => {
                 self.pc += 1;
+
                 println!("NOP");
             }
             Instruction::HCF => {
                 self.t = true; // set termination flag
                 self.pc += 1;
+
                 println!("HCF");
             }
             Instruction::LOADC => {
                 let value = memory.read_byte(self.pc + 1);
                 self.pc += 2;
-                println!("LOADC {}", value);
 
                 // write value to stack
                 memory.write_byte(self.sp, value);
                 self.sp += 1;
+
+                println!("LOADC {}", value);
             }
             Instruction::ADD => {
                 let a = memory.read_byte(self.sp - 2);
                 let b = memory.read_byte(self.sp - 1);
                 self.pc += 1;
-                println!("ADD {} {}", a, b);
 
                 // write result to stack
                 self.sp -= 1;
-                memory.write_byte(self.sp - 1, a + b);
+                let result = a + b;
+                memory.write_byte(self.sp - 1, result);
+
+                println!("ADD {} {}: {}", a, b, result);
+            }
+            Instruction::NEG => {
+                let value = memory.read_byte(self.sp - 1);
+                self.pc += 1;
+
+                // write result to stack
+                let result = !value + 0b1;
+                memory.write_byte(self.sp - 1, result);
+
+                println!("NEG {}: {}", value, result);
             }
         }
 
@@ -114,7 +132,7 @@ mod tests {
         let mut mem = StdMem::default();
         let mut cpu = Processor::default();
 
-        mem.write_byte(0x1FFF, Instruction::NOP as Byte);
+        mem.data[0x1FFF] = Instruction::NOP as Byte;
         cpu.execute(&mut mem)?;
 
         assert_eq!(mem, StdMem::default());
@@ -130,7 +148,7 @@ mod tests {
         let mut mem = StdMem::default();
         let mut cpu = Processor::default();
 
-        mem.write_byte(0x1FFF, Instruction::HCF as Byte);
+        mem.data[0x1FFF] = Instruction::HCF as Byte;
         cpu.execute(&mut mem)?;
 
         assert!(cpu.t);
@@ -143,12 +161,44 @@ mod tests {
         let mut mem = StdMem::default();
         let mut cpu = Processor::default();
 
-        mem.write_byte(0x1FFF, Instruction::LOADC as Byte);
-        mem.write_byte(0x2000, 42);
+        mem.data[0x1FFF] = Instruction::LOADC as Byte;
+        mem.data[0x2000] = 42;
         cpu.execute(&mut mem)?;
 
         assert_eq!(mem.read_byte(0), 42);
 
         Ok(())
     }
+
+    #[test]
+    fn test_add() -> Result<()> {
+        let mut mem = StdMem::default();
+        let mut cpu = Processor::default();
+
+        mem.data[0x0000] = 1;
+        mem.data[0x0001] = 2;
+        cpu.sp = 0x0002;
+        mem.data[0x1FFF] = Instruction::ADD as Byte;
+        cpu.execute(&mut mem)?;
+
+        assert_eq!(mem.read_byte(0x0000), 3);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_neg() -> Result<()> {
+        let mut mem = StdMem::default();
+        let mut cpu = Processor::default();
+
+        mem.data[0x0000] = 10;
+        cpu.sp = 0x0001;
+        mem.data[0x1FFF] = Instruction::NEG as Byte;
+        cpu.execute(&mut mem)?;
+
+        assert_eq!(mem.data[0x0000], -10i8 as Byte);
+
+        Ok(())
+    }
+
 }

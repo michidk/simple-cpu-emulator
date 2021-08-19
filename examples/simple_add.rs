@@ -1,3 +1,5 @@
+use std::f64::INFINITY;
+
 use color_eyre::eyre::Result;
 
 use cpu::memory::{Byte, StdMem, Word};
@@ -12,13 +14,16 @@ fn main() -> Result<()> {
     let mut mem = StdMem::default();
     let mut cpu = Processor::new(ENTRYPOINT);
 
-    mem.write_byte(ENTRYPOINT, Instruction::NOP as Byte); // opcode for first instruction
-    mem.write_byte(ENTRYPOINT + 1, Instruction::LOADC as Byte);
-    mem.write_byte(ENTRYPOINT + 2, 42);
-    mem.write_byte(ENTRYPOINT + 3, Instruction::LOADC as Byte);
-    mem.write_byte(ENTRYPOINT + 4, 1);
-    mem.write_byte(ENTRYPOINT + 5, Instruction::ADD as Byte);
-    mem.write_byte(ENTRYPOINT + 10, Instruction::HCF as Byte);
+    mem.write_array(ENTRYPOINT, &[
+        Instruction::NOP as Byte,
+        Instruction::LOADC as Byte,
+        42,
+        Instruction::LOADC as Byte,
+        58,
+        Instruction::ADD as Byte,
+        Instruction::NEG as Byte,
+        Instruction::HCF as Byte
+    ]);
 
     while !cpu.t {
         cpu.execute(&mut mem)?;
