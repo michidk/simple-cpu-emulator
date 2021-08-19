@@ -142,6 +142,10 @@ impl<'a, const T: usize> Parser<'a, T> {
         let line = self.lines.next()?.trim();
         self.line_nr += 1;
 
+        if line.is_empty() {
+            return Some(Ok(()));
+        }
+
         if let Some(line) = line.strip_suffix(':') {
             // Line is likely a address label.
 
@@ -188,30 +192,36 @@ impl<'a, const T: usize> Parser<'a, T> {
                 Instruction::PUSHC => {
                     log::debug!("[{}] Trying to parse constant of `PUSHC`", self.line_nr);
 
-                    let line = &line[instruction.name().len()..];
+                    if let Some(line) = line[instruction.name().len()..].strip_prefix(' ') {
+                        let line = line.trim_start();
 
-                    // TODO: handle white space as separator
-                    let line = line.trim_start();
+                        let constant =
+                            propagate!(propagate!(parse_number!(u8: line).ok_or_else(|| {
+                                ParseError::new(
+                                    ParseErrorKind::InvalidInstruction,
+                                    "a `PUSHC` needs to have a constant set after it",
+                                    self.line_nr,
+                                )
+                            }))
+                            .map_err(|radix| {
+                                ParseError::new(
+                                    ParseErrorKind::InvalidConstant,
+                                    format!("failed to parse the constant with radix `{}`", radix),
+                                    self.line_nr,
+                                )
+                            }));
 
-                    let constant =
-                        propagate!(propagate!(parse_number!(u8: line).ok_or_else(|| {
-                            ParseError::new(
-                                ParseErrorKind::InvalidInstruction,
-                                "a `PUSHC` needs to have a constant set after it",
-                                self.line_nr,
-                            )
-                        }))
-                        .map_err(|radix| {
-                            ParseError::new(
-                                ParseErrorKind::InvalidConstant,
-                                format!("failed to parse the constant with radix `{}`", radix),
-                                self.line_nr,
-                            )
-                        }));
+                        log::debug!("[{}] PUSHC `0x{:x}`", self.line_nr, constant);
 
-                    log::debug!("[{}] PUSHC `0x{:x}`", self.line_nr, constant);
-
-                    propagate!(self.write_byte(constant));
+                        propagate!(self.write_byte(constant));
+                    } else {
+                        // No space as separator found
+                        return Some(Err(ParseError::new(
+                            ParseErrorKind::InvalidInstruction,
+                            "no space found separating the instruction and the constant",
+                            self.line_nr,
+                        )));
+                    }
                 }
                 // These are all explicitly listed so that when a new
                 // instruction get's added an error will occurs here and force
@@ -276,5 +286,127 @@ impl<'a, const T: usize> Parser<'a, T> {
     fn write_byte<B: Into<Byte>>(&mut self, byte: B) -> Result<()> {
         self.memory.write_byte(self.sp, byte.into());
         self.inc_memory_position()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{memory::StdMem, processor::Processor};
+
+    use super::*;
+    use color_eyre::Result;
+
+    #[test]
+    fn parse_add() -> Result<()> {
+        let data = r#"
+            0:
+                PUSHC 1
+                PUSHC 2
+                ADD
+                HCF
+        "#;
+
+        let mem = StdMem::from_str(data).unwrap();
+
+        assert_eq!(mem.read_byte(0), Instruction::PUSHC.into());
+        assert_eq!(mem.read_byte(1), 1);
+        assert_eq!(mem.read_byte(2), Instruction::PUSHC.into());
+        assert_eq!(mem.read_byte(3), 2);
+        assert_eq!(mem.read_byte(4), Instruction::ADD.into());
+        assert_eq!(mem.read_byte(5), Instruction::HCF.into());
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_add_offset_decimal() -> Result<()> {
+        const ENTRYPOINT: u16 = 1111;
+        let data = r#"
+            1111:
+                PUSHC 1
+                PUSHC 2
+                ADD
+                HCF
+        "#;
+
+        let mem = StdMem::from_str(data).unwrap();
+
+        assert_eq!(mem.read_byte(ENTRYPOINT + 0), Instruction::PUSHC.into());
+        assert_eq!(mem.read_byte(ENTRYPOINT + 1), 1);
+        assert_eq!(mem.read_byte(ENTRYPOINT + 2), Instruction::PUSHC.into());
+        assert_eq!(mem.read_byte(ENTRYPOINT + 3), 2);
+        assert_eq!(mem.read_byte(ENTRYPOINT + 4), Instruction::ADD.into());
+        assert_eq!(mem.read_byte(ENTRYPOINT + 5), Instruction::HCF.into());
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_add_offset_binary() -> Result<()> {
+        const ENTRYPOINT: u16 = 0b110011;
+        let data = r#"
+            0b110011:
+                PUSHC 1
+                PUSHC 2
+                ADD
+                HCF
+        "#;
+
+        let mem = StdMem::from_str(data).unwrap();
+
+        assert_eq!(mem.read_byte(ENTRYPOINT + 0), Instruction::PUSHC.into());
+        assert_eq!(mem.read_byte(ENTRYPOINT + 1), 1);
+        assert_eq!(mem.read_byte(ENTRYPOINT + 2), Instruction::PUSHC.into());
+        assert_eq!(mem.read_byte(ENTRYPOINT + 3), 2);
+        assert_eq!(mem.read_byte(ENTRYPOINT + 4), Instruction::ADD.into());
+        assert_eq!(mem.read_byte(ENTRYPOINT + 5), Instruction::HCF.into());
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_add_offset_octal() -> Result<()> {
+        const ENTRYPOINT: u16 = 0o711;
+        let data = r#"
+            0o711:
+                PUSHC 1
+                PUSHC 2
+                ADD
+                HCF
+        "#;
+
+        let mem = StdMem::from_str(data).unwrap();
+
+        assert_eq!(mem.read_byte(ENTRYPOINT + 0), Instruction::PUSHC.into());
+        assert_eq!(mem.read_byte(ENTRYPOINT + 1), 1);
+        assert_eq!(mem.read_byte(ENTRYPOINT + 2), Instruction::PUSHC.into());
+        assert_eq!(mem.read_byte(ENTRYPOINT + 3), 2);
+        assert_eq!(mem.read_byte(ENTRYPOINT + 4), Instruction::ADD.into());
+        assert_eq!(mem.read_byte(ENTRYPOINT + 5), Instruction::HCF.into());
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_add_offset_hexadecimal() -> Result<()> {
+        const ENTRYPOINT: u16 = 0xdead;
+        let data = r#"
+            0xdead:
+                PUSHC 1
+                PUSHC 2
+                ADD
+                HCF
+        "#;
+
+        let mem = StdMem::from_str(data).unwrap();
+
+        assert_eq!(mem.read_byte(ENTRYPOINT + 0), Instruction::PUSHC.into());
+        assert_eq!(mem.read_byte(ENTRYPOINT + 1), 1);
+        assert_eq!(mem.read_byte(ENTRYPOINT + 2), Instruction::PUSHC.into());
+        assert_eq!(mem.read_byte(ENTRYPOINT + 3), 2);
+        assert_eq!(mem.read_byte(ENTRYPOINT + 4), Instruction::ADD.into());
+        assert_eq!(mem.read_byte(ENTRYPOINT + 5), Instruction::HCF.into());
+
+        Ok(())
     }
 }

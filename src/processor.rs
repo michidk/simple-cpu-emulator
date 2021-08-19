@@ -17,10 +17,13 @@ macro_rules! instrs {
         }
 
         impl Instruction {
+            /// All instructions as a slice.
             pub const ALL: &'static [Self] = &[
                 $( Self::$name , )+
             ];
 
+            /// The name the instruction has, this is also the name of the enum
+            /// variant
             pub fn name(&self) -> &'static str {
                 match self {
                     $( Self::$name => stringify!($name) , )+
@@ -28,13 +31,24 @@ macro_rules! instrs {
             }
         }
 
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+        pub struct TryIntoInstructionError;
+
+        impl ::std::fmt::Display for TryIntoInstructionError {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                ::std::fmt::Debug::fmt(self, f)
+            }
+        }
+
+        impl ::std::error::Error for TryIntoInstructionError {}
+
         impl ::std::convert::TryFrom<u8> for Instruction {
-            type Error = ();
+            type Error = TryIntoInstructionError;
 
             fn try_from(value: u8) -> ::std::result::Result<Self, Self::Error> {
                 match value {
                     $( $repr => Ok(Self::$name) , )+
-                    _ => Err(()),
+                    _ => Err(TryIntoInstructionError),
                 }
             }
         }

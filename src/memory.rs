@@ -30,13 +30,17 @@ impl<const S: usize> Memory<S> {
         // TODO: remove unwrap
         let data = std::fs::read_to_string(path).unwrap();
 
-        let parser = Parser::new(&data, Memory::default());
+        Self::from_str(data)
+    }
+
+    pub fn from_str<D: AsRef<str>>(data: D) -> Result<Self, Vec<ParseError>> {
+        let parser = Parser::new(data.as_ref(), Memory::default());
 
         parser.parse()
     }
 
     /// Reads a byte from the memory
-    pub fn read_byte(&mut self, position: Word) -> Byte {
+    pub fn read_byte(&self, position: Word) -> Byte {
         self.data[position as usize]
     }
 
@@ -46,7 +50,7 @@ impl<const S: usize> Memory<S> {
     }
 
     /// Reads a word from the memory (little endian)
-    pub fn read_word(&mut self, position: Word) -> Word {
+    pub fn read_word(&self, position: Word) -> Word {
         (self.data[position as usize + 1] as Word) << 8 | (self.data[position as usize] as Word)
     }
 
