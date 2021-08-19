@@ -1,18 +1,51 @@
-use std::convert::TryFrom;
-
 use crate::memory::{Memory, Word};
-use color_eyre::IndentedSection;
 use color_eyre::eyre::Result;
 use log::*;
-use num_enum::IntoPrimitive;
-use num_enum::TryFromPrimitive;
+use std::convert::TryFrom;
 
-use num_enum::FromPrimitive;
-/// Defines then instructions
-/// For now the instructions all operate on the stacks, without registers
-#[derive(IntoPrimitive, TryFromPrimitive, FromPrimitive)]
-#[repr(u8)]
-pub enum Instruction {
+macro_rules! instrs {
+    ( $( $( #[doc = $doc:expr] )+ $name:ident = $repr:literal , )+ ) => {
+        /// Defines then instructions
+        /// For now the instructions all operate on the stacks, without registers
+        #[repr(u8)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+        pub enum Instruction {
+            $(
+                $( #[doc = $doc] )+
+                $name = $repr,
+            )+
+        }
+
+        impl Instruction {
+            pub fn name(&self) -> &'static str {
+                match self {
+                    $( Self::$name => stringify!($name) , )+
+                }
+            }
+        }
+
+        impl ::std::convert::TryFrom<u8> for Instruction {
+            type Error = ();
+
+            fn try_from(value: u8) -> ::std::result::Result<Self, Self::Error> {
+                match value {
+                    $( $repr => Ok(Self::$name) , )+
+                    _ => Err(()),
+                }
+            }
+        }
+
+        impl ::std::convert::From<Instruction> for u8 {
+            fn from(value: Instruction) -> Self {
+                match value {
+                    $( Instruction::$name => $repr , )+
+                }
+            }
+        }
+    }
+}
+
+instrs! {
     /// No operation
     NOP = 0x00,
     /// Stop the execution of the program
@@ -144,7 +177,7 @@ impl Processor {
     /// Runs one execution step
     pub fn execute<const S: usize>(&mut self, memory: &mut Memory<S>) -> Result<()> {
         let opcode = memory.read_byte(self.pc); // Read opcode where PC is
-        self.execute_instruction(Instruction::from(opcode), memory)
+        self.execute_instruction(Instruction::try_from(opcode).unwrap(), memory)
     }
 
     /// Run program until a termination condition is met

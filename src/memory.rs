@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 pub mod parse;
 
 pub type Byte = u8; // 1 byte

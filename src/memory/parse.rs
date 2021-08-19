@@ -4,11 +4,12 @@
 //!     ADD
 //!     HCF
 
+use std::convert::TryFrom;
 use std::{fmt, str::Lines};
 
 use crate::processor::Instruction;
 
-use super::{Byte, Memory};
+use super::{Byte, Memory, Word};
 
 macro_rules! propagate {
     ( $res:expr ) => {
@@ -29,9 +30,13 @@ pub enum ParseErrorKind {
 impl fmt::Display for ParseErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ParseErrorKind::InvalidAddress {address} => write!(f, "memory has no address `0x{:x}`", address),
+            ParseErrorKind::InvalidAddress { address } => {
+                write!(f, "memory has no address `0x{:x}`", address)
+            }
             ParseErrorKind::InvalidInstruction => f.write_str("failed to resolve instruction"),
-            ParseErrorKind::InvalidAddressLabel { radix } => write!(f, "failed to parse address label with radix `{}`", radix),
+            ParseErrorKind::InvalidAddressLabel { radix } => {
+                write!(f, "failed to parse address label with radix `{}`", radix)
+            }
         }
     }
 }
@@ -84,7 +89,7 @@ impl<'a, const T: usize> Parser<'a, T> {
         }
 
         if errors.is_empty() {
-        Ok(self.memory)
+            Ok(self.memory)
         } else {
             Err(errors)
         }
@@ -104,20 +109,32 @@ impl<'a, const T: usize> Parser<'a, T> {
                 _ => 10,
             };
 
-            self.sp = propagate!(
-                usize::from_str_radix(&line[..line.len() - 1], radix).map_err(|_| ParseError::new(
-                    ParseErrorKind::InvalidAddressLabel { radix },
-                    self.line_nr
-                ))
-            );
+            self.sp = propagate!(u16::from_str_radix(&line[..line.len() - 1], radix).map_err(
+                |_| ParseError::new(ParseErrorKind::InvalidAddressLabel { radix }, self.line_nr)
+            )) as usize;
         } else {
             // Line is likely an instruction.
             if line == "NOP" {
-                self.memory[self.sp] = Instruction::NOP as Byte;
+                self.memory.write_byte(propagate!(self.get_sp()), Instruction::NOP.into());
             } else if line == "HCF" {
+                self.memory.write_byte(propagate!(self.get_sp()), Instruction::HCF.into());
+            } else if line == "PRINTN" {
+            }
+
+            if self.sp.checked_add(1).is_none() {
+                // Overflow
             }
         }
 
         Some(Ok(()))
+    }
+
+    fn get_sp(&self) -> Result<u16> {
+        u16::try_from(self.sp).map_err(|_| {
+            ParseError::new(
+                ParseErrorKind::InvalidAddress { address: self.sp },
+                self.line_nr,
+            )
+        })
     }
 }
