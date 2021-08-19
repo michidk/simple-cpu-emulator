@@ -17,6 +17,10 @@ macro_rules! instrs {
         }
 
         impl Instruction {
+            pub const ALL: &'static [Self] = &[
+                $( Self::$name , )+
+            ];
+
             pub fn name(&self) -> &'static str {
                 match self {
                     $( Self::$name => stringify!($name) , )+
@@ -40,6 +44,12 @@ macro_rules! instrs {
                 match value {
                     $( Instruction::$name => $repr , )+
                 }
+            }
+        }
+
+        impl ::std::fmt::Display for Instruction {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                ::std::fmt::Debug::fmt(self, f)
             }
         }
     }

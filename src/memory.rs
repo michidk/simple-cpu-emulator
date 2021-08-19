@@ -1,4 +1,6 @@
-use std::ops::Deref;
+use std::path::Path;
+
+use self::parse::{ParseError, Parser};
 
 pub mod parse;
 
@@ -23,6 +25,16 @@ impl<const S: usize> Default for Memory<S> {
 }
 
 impl<const S: usize> Memory<S> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Vec<ParseError>> {
+        let path = path.as_ref();
+        // TODO: remove unwrap
+        let data = std::fs::read_to_string(path).unwrap();
+
+        let parser = Parser::new(&data, Memory::default());
+
+        parser.parse()
+    }
+
     /// Reads a byte from the memory
     pub fn read_byte(&mut self, position: Word) -> Byte {
         self.data[position as usize]
