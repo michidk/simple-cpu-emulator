@@ -47,8 +47,26 @@ impl<const S: usize> Memory<S> {
     }
 }
 
+/// Writes a block of instructions directly into the memory
+// Thanks for @Shemnei for helping me with this!
+#[macro_export]
+macro_rules! write_instructions {
+    ( $mem:ident : $pos:expr => $( $byte:expr ),+ ) => {
+        // use cpu::processor::Instruction::*;
+        // use cpu::memory::Byte;
+
+        $mem.write_array($pos, &[
+            $(
+                $byte as Byte,
+            )+
+        ]);
+    };
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::processor::Instruction;
+
     use super::*;
     use color_eyre::eyre::Result;
 
@@ -101,4 +119,28 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_write_instructions() -> Result<()> {
+        let mut mem = StdMem::default();
+
+        mem.write_array(0x1FFF, &[
+            Instruction::NOP as Byte,
+            Instruction::LOADC as Byte,
+            42,
+            Instruction::LOADC as Byte,
+            58,
+            Instruction::ADD as Byte,
+            Instruction::HCF as Byte
+        ]);
+
+        let mut mem2 = StdMem::default();
+        use crate::processor::Instruction::*;
+        write_instructions!(mem2 : 0x1FFF => NOP, LOADC, 42, LOADC, 58, ADD, HCF);
+
+        assert_eq!(mem, mem2);
+
+        Ok(())
+    }
+
 }

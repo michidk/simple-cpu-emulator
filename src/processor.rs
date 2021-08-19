@@ -7,11 +7,11 @@ pub enum Instruction {
     NOP,
     /// Stop the execution of the program
     HCF, // https://en.wikipedia.org/wiki/Halt_and_Catch_Fire_(computing)
-    /// Load constant
+    /// Load constant onto stack
     LOADC,
-    /// Add two registers
+    /// Add two values on the stack and write result to stack
     ADD,
-    /// Negates an integer
+    /// Negates an integer on the stack
     NEG
 }
 

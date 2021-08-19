@@ -4,6 +4,7 @@ use color_eyre::eyre::Result;
 
 use cpu::memory::{Byte, StdMem, Word};
 use cpu::processor::{Instruction, Processor};
+use cpu::write_instructions;
 
 /// The main entrypoit. First instruction should be placed here.
 const ENTRYPOINT: Word = 0x1FFF;
@@ -14,16 +15,16 @@ fn main() -> Result<()> {
     let mut mem = StdMem::default();
     let mut cpu = Processor::new(ENTRYPOINT);
 
-    mem.write_array(ENTRYPOINT, &[
-        Instruction::NOP as Byte,
-        Instruction::LOADC as Byte,
+    use cpu::processor::Instruction::*;
+    write_instructions!(mem : ENTRYPOINT =>
+        NOP,
+        LOADC,
         42,
-        Instruction::LOADC as Byte,
+        LOADC,
         58,
-        Instruction::ADD as Byte,
-        Instruction::NEG as Byte,
-        Instruction::HCF as Byte
-    ]);
+        ADD,
+        HCF
+    );
 
     while !cpu.t {
         cpu.execute(&mut mem)?;
