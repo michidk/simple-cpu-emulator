@@ -1,7 +1,10 @@
 [package]
-name = "simple-cpu-emulator"
+name = "cpu"
 version = "0.1.0"
 edition = "2018"
 
 [dependencies]
 color-eyre = "0.5.11"
+log = "0.4.14"
+num_enum = "0.5.4"
+simple_logger = "1.13.0"
