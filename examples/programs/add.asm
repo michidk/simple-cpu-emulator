@@ -1,6 +1,5 @@
 0x1fff:
-0x2100:
-	PUSHC 24
+	PUSHC
 	PUSHC 15
 	ADD
 	HCF

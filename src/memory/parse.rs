@@ -69,7 +69,15 @@ impl ParseError {
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "error [ln: {}]: {}", self.line_nr, self.kind)
+        if let Some(context) = &self.context {
+            write!(
+                f,
+                "error [ln: {}]: {} - {}",
+                self.line_nr, self.kind, context
+            )
+        } else {
+            write!(f, "error [ln: {}]: {}", self.line_nr, self.kind)
+        }
     }
 }
 
@@ -142,7 +150,7 @@ impl<'a, const T: usize> Parser<'a, T> {
         let line = self.lines.next()?.trim();
         self.line_nr += 1;
 
-        if line.is_empty() {
+        if line.is_empty() || line.starts_with('#') {
             return Some(Ok(()));
         }
 
