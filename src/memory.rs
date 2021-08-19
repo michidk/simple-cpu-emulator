@@ -1,3 +1,5 @@
+pub mod parse;
+
 pub type Byte = u8; // 1 byte
 pub type Word = u16; // 2 bytes
 
