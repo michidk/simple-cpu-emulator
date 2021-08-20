@@ -16,6 +16,7 @@ fn main() -> Result<()> {
     let mut cpu = Processor::new(ENTRYPOINT);
 
     use cpu::processor::Instruction::*;
+    // add two numbers
     write_instructions!(mem : ENTRYPOINT =>
         PUSHC,
         42,
@@ -25,7 +26,7 @@ fn main() -> Result<()> {
         HCF
     );
 
-    cpu.execute_until_hcl(&mut mem)?;
+    cpu.execute_until_hcf(&mut mem)?;
 
     Ok(())
 }

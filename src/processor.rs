@@ -1,27 +1,27 @@
 use std::convert::TryFrom;
 
 use crate::memory::{Memory, Word};
-use color_eyre::IndentedSection;
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{Result, WrapErr};
 use log::*;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 
-use num_enum::FromPrimitive;
 /// Defines then instructions
 /// For now the instructions all operate on the stacks, without registers
-#[derive(IntoPrimitive, TryFromPrimitive, FromPrimitive)]
+#[derive(TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum Instruction {
     /// No operation
     NOP = 0x00,
     /// Stop the execution of the program
     HCF = 0x01, // https://en.wikipedia.org/wiki/Halt_and_Catch_Fire_(computing)
-    /// Prints a decimal number from the stack to the console
+    /// Prints a decimal number from the stack to the console without consuming the value
     PRINTN = 0x05,
     /// Load constant onto stack
     /// @param value The value to load
     PUSHC = 0x10,
+    /// Duplicates a value on the stack
+    DUP = 0x15,
     /// Add two values on the stack and write result to stack
     ADD = 0x20,
     /// Negates an integer on the stack
@@ -82,7 +82,7 @@ impl Processor {
                 debug!("HCF");
             }
             Instruction::PRINTN => {
-                let value = memory.read_byte(self.pc + 1);
+                let value = memory.read_byte(self.sp - 1);
                 self.pc += 1;
 
                 info!("{}", value.to_string());
@@ -97,6 +97,16 @@ impl Processor {
 
                 debug!("LOADC {}", value);
             }
+            Instruction::DUP => {
+                let value = memory.read_byte(self.sp - 1);
+                self.pc += 1;
+
+                // write result to stack
+                memory.write_byte(self.sp, value);
+                self.sp += 1;
+
+                debug!("DUP {}", value);
+            }
             Instruction::ADD => {
                 let a = memory.read_byte(self.sp - 2);
                 let b = memory.read_byte(self.sp - 1);
@@ -104,7 +114,7 @@ impl Processor {
 
                 // write result to stack
                 self.sp -= 1;
-                let result = a + b;
+                let result = a.wrapping_add(b);
                 memory.write_byte(self.sp - 1, result);
 
                 debug!("ADD {} {}: {}", a, b, result);
@@ -120,18 +130,19 @@ impl Processor {
                 debug!("NEG {}: {}", value, result);
             }
             Instruction::JUMP => {
-                let addr = memory.read_byte(self.pc + 1);
-                self.pc = addr as Word;
+                let addr = memory.read_word(self.pc + 1);
+                self.pc = addr;
 
                 debug!("JUMP {}", addr);
             }
             Instruction::JUMPZ => {
-                let addr = memory.read_byte(self.pc + 1);
+                let addr = memory.read_word(self.pc + 1);
+                self.pc += 3;
                 let value = memory.read_byte(self.sp - 1);
                 self.sp -= 1;
 
                 if value == 0 {
-                    self.pc = addr as Word;
+                    self.pc = addr;
                 }
 
                 debug!("JUMPZ {}: {}", addr, value);
@@ -144,11 +155,13 @@ impl Processor {
     /// Runs one execution step
     pub fn execute<const S: usize>(&mut self, memory: &mut Memory<S>) -> Result<()> {
         let opcode = memory.read_byte(self.pc); // Read opcode where PC is
-        self.execute_instruction(Instruction::from(opcode), memory)
+        let instruction = Instruction::try_from(opcode)
+            .wrap_err_with(|| format!("Invalid opcode: 0x{:02X}", opcode))?;
+        self.execute_instruction(instruction, memory)
     }
 
     /// Run program until a termination condition is met
-    pub fn execute_until_hcl<const S: usize>(&mut self, memory: &mut Memory<S>) -> Result<()> {
+    pub fn execute_until_hcf<const S: usize>(&mut self, memory: &mut Memory<S>) -> Result<()> {
         while !self.t {
             self.execute(memory)?;
         }
