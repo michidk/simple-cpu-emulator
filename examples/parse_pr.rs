@@ -14,7 +14,7 @@ fn main() -> Result<()> {
     let mut mem = StdMem::from_file("examples/programs/add_pr.asm").unwrap();
     let mut cpu = Processor::new(ENTRYPOINT);
 
-    cpu.execute_until_hcl(&mut mem)?;
+    cpu.execute_until_hcf(&mut mem)?;
 
     Ok(())
 }

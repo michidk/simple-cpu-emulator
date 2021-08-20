@@ -85,16 +85,16 @@ impl error::Error for ParseError {}
 
 pub type Result<T, E = ParseError> = std::result::Result<T, E>;
 
-pub struct Parser<'a, const T: usize> {
+pub struct Parser<'a, const S: usize> {
     lines: Lines<'a>,
     line_nr: usize,
     sp: u16,
-    memory: Memory<T>,
+    memory: Memory<S>,
 }
 
-impl<'a, const T: usize> Parser<'a, T> {
+impl<'a, const S: usize> Parser<'a, S> {
     /// Creates a new parse for `data` which will try to populate `memory`.
-    pub fn new(data: &'a str, memory: Memory<T>) -> Self {
+    pub fn new(data: &'a str, memory: Memory<S>) -> Self {
         Self {
             lines: data.lines(),
             line_nr: 0,
@@ -108,7 +108,7 @@ impl<'a, const T: usize> Parser<'a, T> {
     /// # Errors
     ///
     /// All errors which may occur are collected and returned at the end.
-    pub fn parse(mut self) -> Result<Memory<T>, Vec<ParseError>> {
+    pub fn parse(mut self) -> Result<Memory<S>, Vec<ParseError>> {
         let mut errors = Vec::new();
 
         while let Some(res) = self.parse_next_line() {
@@ -238,6 +238,7 @@ impl<'a, const T: usize> Parser<'a, T> {
                 Instruction::NOP
                 | Instruction::HCF
                 | Instruction::PRINTN
+                | Instruction::DUP
                 | Instruction::ADD
                 | Instruction::NEG
                 | Instruction::JUMP
@@ -299,7 +300,8 @@ impl<'a, const T: usize> Parser<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{memory::StdMem, processor::Processor};
+    use crate::memory::StdMem;
+    use std::str::FromStr;
 
     use super::*;
     use color_eyre::Result;

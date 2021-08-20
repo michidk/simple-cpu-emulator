@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, str::FromStr};
 
 use self::parse::{ParseError, Parser};
 
@@ -30,13 +30,7 @@ impl<const S: usize> Memory<S> {
         // TODO: remove unwrap
         let data = std::fs::read_to_string(path).unwrap();
 
-        Self::from_str(data)
-    }
-
-    pub fn from_str<D: AsRef<str>>(data: D) -> Result<Self, Vec<ParseError>> {
-        let parser = Parser::new(data.as_ref(), Memory::default());
-
-        parser.parse()
+        data.parse()
     }
 
     /// Reads a byte from the memory
@@ -64,6 +58,16 @@ impl<const S: usize> Memory<S> {
     pub fn write_array(&mut self, position: Word, data: &[Byte]) {
         (&mut self.data[position as usize..position as usize + data.len() as usize])
             .copy_from_slice(data);
+    }
+}
+
+impl<const S: usize> FromStr for Memory<S> {
+    type Err = Vec<ParseError>;
+
+    fn from_str(value: &str) -> std::result::Result<Self, <Self as FromStr>::Err> {
+        let parser = Parser::new(value, Memory::default());
+
+        parser.parse()
     }
 }
 

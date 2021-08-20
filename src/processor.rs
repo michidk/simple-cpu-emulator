@@ -6,34 +6,6 @@ use log::*;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 
-/// Defines then instructions
-/// For now the instructions all operate on the stacks, without registers
-#[derive(TryFromPrimitive, IntoPrimitive)]
-#[repr(u8)]
-pub enum Instruction {
-    /// No operation
-    NOP = 0x00,
-    /// Stop the execution of the program
-    HCF = 0x01, // https://en.wikipedia.org/wiki/Halt_and_Catch_Fire_(computing)
-    /// Prints a decimal number from the stack to the console without consuming the value
-    PRINTN = 0x05,
-    /// Load constant onto stack
-    /// @param value The value to load
-    PUSHC = 0x10,
-    /// Duplicates a value on the stack
-    DUP = 0x15,
-    /// Add two values on the stack and write result to stack
-    ADD = 0x20,
-    /// Negates an integer on the stack
-    NEG = 0x30,
-    /// Jump to an address
-    /// @param adress The adress to jump to
-    JUMP = 0x40,
-    /// Jump conditionally to an address depending on the value on the stack
-    /// @param adress The adress to jump to
-    JUMPZ = 0x41,
-}
-
 /// Emulates a CPU
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Processor {
@@ -171,6 +143,66 @@ impl Processor {
 
         Ok(())
     }
+}
+
+macro_rules! instructions {
+    ( $( $( #[doc = $doc:expr] )+ $name:ident = $repr:literal , )+ ) => {
+        /// Defines then instructions
+        /// For now the instructions all operate on the stacks, without registers
+        #[repr(u8)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+        #[derive(TryFromPrimitive, IntoPrimitive)]
+        pub enum Instruction {
+            $(
+                $( #[doc = $doc] )+
+                $name = $repr,
+            )+
+        }
+
+        impl Instruction {
+            pub const ALL: &'static [Self] = &[
+                $( Self::$name , )+
+            ];
+
+            pub fn name(&self) -> &'static str {
+                match self {
+                    $( Self::$name => stringify!($name) , )+
+                }
+            }
+        }
+
+        impl ::std::fmt::Display for Instruction {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                match self {
+                    $( Self::$name => f.write_str(stringify!($name)) , )+
+                }
+            }
+        }
+    }
+}
+
+instructions! {
+    /// No operation
+    NOP = 0x00,
+    /// Stop the execution of the program
+    HCF = 0x01, // https://en.wikipedia.org/wiki/Halt_and_Catch_Fire_(computing)
+    /// Prints a decimal number from the stack to the console without consuming the value
+    PRINTN = 0x05,
+    /// Load constant onto stack
+    /// @param value The value to load
+    PUSHC = 0x10,
+    /// Duplicates a value on the stack
+    DUP = 0x15,
+    /// Add two values on the stack and write result to stack
+    ADD = 0x20,
+    /// Negates an integer on the stack
+    NEG = 0x30,
+    /// Jump to an address
+    /// @param adress The adress to jump to
+    JUMP = 0x40,
+    /// Jump conditionally to an address depending on the value on the stack
+    /// @param adress The adress to jump to
+    JUMPZ = 0x41,
 }
 
 #[cfg(test)]
