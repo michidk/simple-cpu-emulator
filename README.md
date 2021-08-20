@@ -54,7 +54,7 @@ cpu.execute_until_hcl(&mut mem)?;
 
 An example is located at `examples/parse.rs`.
 
-### Define instructions is Rust
+### Define instructions in Rust
 
 Define instructions in Rust using the `write_instructions` macro:
 
