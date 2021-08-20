@@ -6,6 +6,43 @@ use log::*;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 
+/// Macro that will generate the Instruction enum
+macro_rules! instructions {
+    ( $( $( #[doc = $doc:expr] )+ $name:ident = $repr:literal , )+ ) => {
+        #[repr(u8)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+        #[derive(TryFromPrimitive, IntoPrimitive)]
+        pub enum Instruction {
+            $(
+                $( #[doc = $doc] )+
+                $name = $repr,
+            )+
+        }
+
+        impl Instruction {
+            pub const ALL: &'static [Self] = &[
+                $( Self::$name , )+
+            ];
+
+            pub fn name(&self) -> &'static str {
+                match self {
+                    $( Self::$name => stringify!($name) , )+
+                }
+            }
+        }
+
+        impl ::std::fmt::Display for Instruction {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                match self {
+                    $( Self::$name => f.write_str(stringify!($name)) , )+
+                }
+            }
+        }
+    }
+}
+
+/// Defines then instructions
+/// For now the instructions all operate on the stacks, without registers
 instructions! {
     /// No operation
     NOP = 0x00,
@@ -166,42 +203,6 @@ impl Processor {
         info!("Programm Terminated. Result: 0x{:04X} / {}", result, result);
 
         Ok(())
-    }
-}
-
-macro_rules! instructions {
-    ( $( $( #[doc = $doc:expr] )+ $name:ident = $repr:literal , )+ ) => {
-        /// Defines then instructions
-        /// For now the instructions all operate on the stacks, without registers
-        #[repr(u8)]
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-        #[derive(TryFromPrimitive, IntoPrimitive)]
-        pub enum Instruction {
-            $(
-                $( #[doc = $doc] )+
-                $name = $repr,
-            )+
-        }
-
-        impl Instruction {
-            pub const ALL: &'static [Self] = &[
-                $( Self::$name , )+
-            ];
-
-            pub fn name(&self) -> &'static str {
-                match self {
-                    $( Self::$name => stringify!($name) , )+
-                }
-            }
-        }
-
-        impl ::std::fmt::Display for Instruction {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                match self {
-                    $( Self::$name => f.write_str(stringify!($name)) , )+
-                }
-            }
-        }
     }
 }
 
