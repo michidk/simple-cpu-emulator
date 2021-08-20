@@ -1,3 +1,9 @@
+use std::{path::Path, str::FromStr};
+
+use self::parse::{ParseError, Parser};
+
+pub mod parse;
+
 pub type Byte = u8; // 1 byte
 pub type Word = u16; // 2 bytes
 
@@ -19,8 +25,16 @@ impl<const S: usize> Default for Memory<S> {
 }
 
 impl<const S: usize> Memory<S> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Vec<ParseError>> {
+        let path = path.as_ref();
+        // TODO: remove unwrap
+        let data = std::fs::read_to_string(path).unwrap();
+
+        data.parse()
+    }
+
     /// Reads a byte from the memory
-    pub fn read_byte(&mut self, position: Word) -> Byte {
+    pub fn read_byte(&self, position: Word) -> Byte {
         self.data[position as usize]
     }
 
@@ -30,7 +44,7 @@ impl<const S: usize> Memory<S> {
     }
 
     /// Reads a word from the memory (little endian)
-    pub fn read_word(&mut self, position: Word) -> Word {
+    pub fn read_word(&self, position: Word) -> Word {
         (self.data[position as usize + 1] as Word) << 8 | (self.data[position as usize] as Word)
     }
 
@@ -44,6 +58,16 @@ impl<const S: usize> Memory<S> {
     pub fn write_array(&mut self, position: Word, data: &[Byte]) {
         (&mut self.data[position as usize..position as usize + data.len() as usize])
             .copy_from_slice(data);
+    }
+}
+
+impl<const S: usize> FromStr for Memory<S> {
+    type Err = Vec<ParseError>;
+
+    fn from_str(value: &str) -> std::result::Result<Self, <Self as FromStr>::Err> {
+        let parser = Parser::new(value, Memory::default());
+
+        parser.parse()
     }
 }
 
