@@ -6,6 +6,30 @@ use log::*;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 
+instructions! {
+    /// No operation
+    NOP = 0x00,
+    /// Stop the execution of the program
+    HCF = 0x01, // https://en.wikipedia.org/wiki/Halt_and_Catch_Fire_(computing)
+    /// Prints a decimal number from the stack to the console without consuming the value
+    PRINTN = 0x05,
+    /// Load constant onto stack
+    /// @param value The value to load
+    PUSHC = 0x10,
+    /// Duplicates a value on the stack
+    DUP = 0x15,
+    /// Add two values on the stack and write result to stack
+    ADD = 0x20,
+    /// Negates an integer on the stack
+    NEG = 0x30,
+    /// Jump to an address
+    /// @param adress The adress to jump to
+    JUMP = 0x40,
+    /// Jump conditionally to an address depending on the value on the stack
+    /// @param adress The adress to jump to
+    JUMPZ = 0x41,
+}
+
 /// Emulates a CPU
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Processor {
@@ -179,30 +203,6 @@ macro_rules! instructions {
             }
         }
     }
-}
-
-instructions! {
-    /// No operation
-    NOP = 0x00,
-    /// Stop the execution of the program
-    HCF = 0x01, // https://en.wikipedia.org/wiki/Halt_and_Catch_Fire_(computing)
-    /// Prints a decimal number from the stack to the console without consuming the value
-    PRINTN = 0x05,
-    /// Load constant onto stack
-    /// @param value The value to load
-    PUSHC = 0x10,
-    /// Duplicates a value on the stack
-    DUP = 0x15,
-    /// Add two values on the stack and write result to stack
-    ADD = 0x20,
-    /// Negates an integer on the stack
-    NEG = 0x30,
-    /// Jump to an address
-    /// @param adress The adress to jump to
-    JUMP = 0x40,
-    /// Jump conditionally to an address depending on the value on the stack
-    /// @param adress The adress to jump to
-    JUMPZ = 0x41,
 }
 
 #[cfg(test)]
