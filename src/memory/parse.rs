@@ -358,58 +358,7 @@ impl<'a, const S: usize> Parser<'a, S> {
 
         log::debug!("[{}] Found instruction {}", self.line_nr, instruction);
 
-        propagate!(self.write_byte(instruction));
-
-        match instruction {
-            Instruction::PUSHC => {
-                log::debug!("[{}] Trying to parse constant of `PUSHC`", self.line_nr);
-
-                if let Some(line) = line[instruction.name().len()..].strip_prefix(' ') {
-                    let line = line.trim_start();
-
-                    let constant =
-                        propagate!(propagate!(parse_number!(u8: line).ok_or_else(|| {
-                            ParseError::new(
-                                ParseErrorKind::InvalidInstruction,
-                                "a `PUSHC` needs to have a constant set after it",
-                                self.line_nr,
-                            )
-                        }))
-                        .map_err(|radix| {
-                            ParseError::new(
-                                ParseErrorKind::InvalidConstant,
-                                format!("failed to parse the constant with radix `{}`", radix),
-                                self.line_nr,
-                            )
-                        }));
-
-                    log::debug!("[{}] PUSHC `0x{:x}`", self.line_nr, constant);
-
-                    propagate!(self.write_byte(constant));
-                } else {
-                    // No space as separator found
-                    return Some(Err(ParseError::new(
-                        ParseErrorKind::InvalidInstruction,
-                        "no space found separating the instruction and the constant",
-                        self.line_nr,
-                    )));
-                }
-            }
-            // These are all explicitly listed so that when a new
-            // instruction get's added an error will occurs here and force
-            // the implementer to check if a special case needs to be added
-            // here.
-            Instruction::NOP
-            | Instruction::HCF
-            | Instruction::PRINTN
-            | Instruction::DUP
-            | Instruction::ADD
-            | Instruction::NEG
-            | Instruction::JUMP
-            | Instruction::JUMPZ => { /* NOP */ }
-        }
-
-        Some(Ok(()))
+        Some(self.write_byte(instruction))
     }
 
     /// Adds `amount` to the position of pointer into memory.
@@ -505,8 +454,10 @@ mod tests {
     fn parse_add() -> Result<()> {
         let data = r#"
             0:
-                PUSHC 1
-                PUSHC 2
+                PUSHC
+                !1
+                PUSHC
+                !2
                 ADD
                 HCF
         "#;
@@ -528,8 +479,10 @@ mod tests {
         const ENTRYPOINT: u16 = 1111;
         let data = r#"
             1111:
-                PUSHC 1
-                PUSHC 2
+                PUSHC
+                !1
+                PUSHC
+                !2
                 ADD
                 HCF
         "#;
@@ -551,8 +504,10 @@ mod tests {
         const ENTRYPOINT: u16 = 0b110011;
         let data = r#"
             0b110011:
-                PUSHC 1
-                PUSHC 2
+                PUSHC
+                !1
+                PUSHC
+                !2
                 ADD
                 HCF
         "#;
@@ -574,8 +529,10 @@ mod tests {
         const ENTRYPOINT: u16 = 0o711;
         let data = r#"
             0o711:
-                PUSHC 1
-                PUSHC 2
+                PUSHC
+                !1
+                PUSHC
+                !2
                 ADD
                 HCF
         "#;
@@ -597,8 +554,10 @@ mod tests {
         const ENTRYPOINT: u16 = 0xdead;
         let data = r#"
             0xdead:
-                PUSHC 1
-                PUSHC 2
+                PUSHC
+                !1
+                PUSHC
+                !2
                 ADD
                 HCF
         "#;
