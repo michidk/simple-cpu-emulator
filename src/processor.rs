@@ -9,6 +9,8 @@ use num_enum::TryFromPrimitive;
 /// Macro that will generate the Instruction enum
 macro_rules! instructions {
     ( $( $( #[doc = $doc:expr] )+ $name:ident = $repr:literal , )+ ) => {
+        /// Defines then instructions
+        /// For now the instructions all operate on the stacks, without registers
         #[repr(u8)]
         #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
         #[derive(TryFromPrimitive, IntoPrimitive)]
@@ -41,8 +43,6 @@ macro_rules! instructions {
     }
 }
 
-/// Defines then instructions
-/// For now the instructions all operate on the stacks, without registers
 instructions! {
     /// No operation
     NOP = 0x00,
