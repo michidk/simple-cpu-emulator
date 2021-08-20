@@ -12,24 +12,24 @@ The code is fully documented. A list of instructions can be found [here](https:/
 Count from 10 to 1:
 ```assembly
 0x1fff:
-  PUSHC
-  10
-  # print the number
-  PRINTN
-  # subtract one
-  PUSHC
-  1
-  NEG
-  ADD
-  DUP
-  # check if we are done
-  JUMPZ
-  0x0D
-  0x20
-  # jump back to the print statement
-  JUMP
-  0x01
-  0x20
-  # halt
-  HCF
+    PUSHC
+    10
+    # print the number
+    PRINTN
+    # subtract one
+    PUSHC
+    1
+    NEG
+    ADD
+    DUP
+    # check if we are done
+    JUMPZ
+    0x0D
+    0x20
+    # jump back to the print statement
+    JUMP
+    0x01
+    0x20
+    # halt
+    HCF
 ```
