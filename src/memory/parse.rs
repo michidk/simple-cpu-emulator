@@ -349,7 +349,7 @@ impl<'a, const S: usize> Parser<'a, S> {
 
         let instruction = *propagate!(Instruction::ALL
             .iter()
-            .find(|instruction| line.starts_with(instruction.name()))
+            .find(|instruction| line == instruction.name())
             .ok_or_else(|| ParseError::new(
                 ParseErrorKind::InvalidInstruction,
                 "no instruction matching that name was found",
@@ -421,7 +421,7 @@ impl<'a, const S: usize> Parser<'a, S> {
     ///
     /// - [`Parser::inc_memory_position`]
     fn write_be_word<B: Into<Word>>(&mut self, word: B) -> Result<()> {
-        self.memory.write_word(self.sp, word.into().rotate_left(8));
+        self.memory.write_word(self.sp, word.into());
         self.add_memory_position(2)
     }
 
@@ -437,7 +437,7 @@ impl<'a, const S: usize> Parser<'a, S> {
     ///
     /// - [`Parser::inc_memory_position`]
     fn write_le_word<B: Into<Word>>(&mut self, word: B) -> Result<()> {
-        self.memory.write_word(self.sp, word.into());
+        self.memory.write_word(self.sp, word.into().rotate_left(8));
         self.add_memory_position(2)
     }
 }

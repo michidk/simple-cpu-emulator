@@ -59,6 +59,14 @@ impl<const S: usize> Memory<S> {
         (&mut self.data[position as usize..position as usize + data.len() as usize])
             .copy_from_slice(data);
     }
+
+    pub fn dump(&self) {
+        for (idx, byte) in self.data.iter().enumerate() {
+            if byte != &0 {
+                println!("0x{:04x}: 0x{:02x}", idx, byte);
+            }
+        }
+    }
 }
 
 impl<const S: usize> FromStr for Memory<S> {
