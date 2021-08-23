@@ -106,7 +106,7 @@ impl Processor {
             Instruction::NOP => {
                 self.pc += 1;
 
-                debug!("NOP");
+                //debug!("NOP");
             }
             Instruction::HCF => {
                 self.t = true; // set termination flag
@@ -166,7 +166,7 @@ impl Processor {
                 let addr = memory.read_word(self.pc + 1);
                 self.pc = addr;
 
-                debug!("JUMP {}", addr);
+                debug!("JUMP 0x{:04x}", addr);
             }
             Instruction::JUMPZ => {
                 let addr = memory.read_word(self.pc + 1);
@@ -178,7 +178,7 @@ impl Processor {
                     self.pc = addr;
                 }
 
-                debug!("JUMPZ {}: {}", addr, value);
+                debug!("JUMPZ 0x{:04x}: 0x{:02x}", addr, value);
             }
         }
 

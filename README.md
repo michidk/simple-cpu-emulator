@@ -13,23 +13,21 @@ Count from 10 to 1:
 ```assembly
 0x1fff:
     PUSHC
-    10
+    !10
     # print the number
     PRINTN
     # subtract one
     PUSHC
-    1
+    !1
     NEG
     ADD
     DUP
     # check if we are done
     JUMPZ
-    0x0D
-    0x20
+    !W0x200D
     # jump back to the print statement
     JUMP
-    0x01
-    0x20
+    !W0x2001
     # halt
     HCF
 ```
@@ -49,7 +47,7 @@ Parse an `.asm` file:
 let mut mem = StdMem::from_file("examples/programs/add.asm").unwrap();
 let mut cpu = Processor::new(ENTRYPOINT);
 
-cpu.execute_until_hcl(&mut mem)?;
+cpu.execute_until_hcf(&mut mem)?;
 ```
 
 An example is located at `examples/parse.rs`.
@@ -69,7 +67,7 @@ write_instructions!(mem : ENTRYPOINT =>
     HCF
 );
 
-cpu.execute_until_hcl(&mut mem)?;
+cpu.execute_until_hcf(&mut mem)?;
 ```
 
 An example is located at `examples/add.rs`.
