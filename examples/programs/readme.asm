@@ -1,6 +1,4 @@
-%endianness(le)
-0xff1f:
-    %endianness(be)
+0x1fff:
     PUSHC
     !10
     # print the number
@@ -13,7 +11,7 @@
     DUP
     # check if we are done
     JUMPZ
-    !W0x200B
+    !W0x200D
     # jump back to the print statement
     JUMP
     !W0x2001
