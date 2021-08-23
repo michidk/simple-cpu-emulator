@@ -1,6 +1,6 @@
-%endianess(be)
-
-0x1fff:
+%endianess(le)
+0xff1f:
+    %endianess(be)
     PUSHC
     !10
     # print the number

@@ -94,17 +94,17 @@ macro_rules! parse_number {
         let line = $s;
 
         if line.trim().is_empty() {
-            return None;
+            None
+        } else {
+            let (radix, offset) = match line.as_bytes() {
+                [b'0', b'b', ..] => (2, 2),
+                [b'0', b'o', ..] => (8, 2),
+                [b'0', b'x', ..] => (16, 2),
+                _ => (10, 0),
+            };
+
+            Some(<$ty>::from_str_radix(&line[offset..], radix).map_err(|_| radix))
         }
-
-        let (radix, offset) = match line.as_bytes() {
-            [b'0', b'b', ..] => (2, 2),
-            [b'0', b'o', ..] => (8, 2),
-            [b'0', b'x', ..] => (16, 2),
-            _ => (10, 0),
-        };
-
-        Some(<$ty>::from_str_radix(&line[offset..], radix).map_err(|_| radix))
     }};
 }
 
@@ -250,47 +250,16 @@ impl<'a, const S: usize> Parser<'a, S> {
 
             let line = line.trim();
 
-            let word =
-                propagate!(
-                    propagate!(parse_number!(u16: line).ok_or_else(|| ParseError::new(
-                        ParseErrorKind::InvalidLiteral,
-                        "a literal needs to have a number set",
-                        self.line_nr
-                    )))
-                    .map_err(|radix| {
-                        ParseError::new(
-                            ParseErrorKind::InvalidLiteral,
-                            format!("failed to parse literal as word with radix `{}`", radix),
-                            self.line_nr,
-                        )
-                    })
-                );
+            let word = propagate!(self.parse_word(line));
 
-            match self.session.endianess {
-                Endianess::Little => Some(self.write_le_word(word)),
-                Endianess::Big => Some(self.write_be_word(word)),
-            }
+            Some(self.write_word(word))
         } else {
             // Literal is a byte
             log::debug!("[{}] Found byte literal", self.line_nr);
 
             let line = line.trim();
 
-            let byte =
-                propagate!(
-                    propagate!(parse_number!(u8: line).ok_or_else(|| ParseError::new(
-                        ParseErrorKind::InvalidLiteral,
-                        "a literal needs to have a number set",
-                        self.line_nr
-                    )))
-                    .map_err(|radix| {
-                        ParseError::new(
-                            ParseErrorKind::InvalidLiteral,
-                            format!("failed to parse literal as byte with radix `{}`", radix),
-                            self.line_nr,
-                        )
-                    })
-                );
+            let byte = propagate!(self.parse_byte(line));
 
             Some(self.write_byte(byte))
         }
@@ -310,25 +279,7 @@ impl<'a, const S: usize> Parser<'a, S> {
 
         log::debug!("[{}] Found address label", self.line_nr);
 
-        // The address is intentionally parsed as an u16 to detect if it's
-        // a valid address.
-        let address =
-            propagate!(
-                propagate!(parse_number!(u16: line).ok_or_else(|| ParseError::new(
-                    ParseErrorKind::InvalidAddressLabel,
-                    "an address label needs to have an address set",
-                    self.line_nr
-                )))
-                .map_err(|radix| {
-                    ParseError::new(
-                        ParseErrorKind::InvalidAddress {
-                            address: usize::MAX,
-                        },
-                        format!("failed to parse the address with radix `{}`", radix),
-                        self.line_nr,
-                    )
-                })
-            );
+        let address = propagate!(self.parse_word(line));
 
         log::debug!("[{}] Address label `0x{:x}`", self.line_nr, address);
 
@@ -359,6 +310,61 @@ impl<'a, const S: usize> Parser<'a, S> {
         log::debug!("[{}] Found instruction {}", self.line_nr, instruction);
 
         Some(self.write_byte(instruction))
+    }
+
+    /// Tries to parse s as a byte. The `s` should be the whole byte.
+    ///
+    /// # Examples
+    ///
+    /// - `0x22`
+    /// - `0o8`
+    fn parse_byte(&self, s: &str) -> Result<Byte> {
+        parse_number!(u8: s)
+            .ok_or_else(|| {
+                ParseError::new(
+                    ParseErrorKind::InvalidLiteral,
+                    "a literal needs to have a number set",
+                    self.line_nr,
+                )
+            })?
+            .map_err(|radix| {
+                ParseError::new(
+                    ParseErrorKind::InvalidLiteral,
+                    format!("failed to parse literal as byte with radix `{}`", radix),
+                    self.line_nr,
+                )
+            })
+    }
+
+    /// Tries to parse s as a word. The `s` should be the whole byte.
+    ///
+    /// # Examples
+    ///
+    /// - `0x22`
+    /// - `0o8`
+    fn parse_word(&self, s: &str) -> Result<Word> {
+        let word = parse_number!(u16: s)
+            .ok_or_else(|| {
+                ParseError::new(
+                    ParseErrorKind::InvalidLiteral,
+                    "a literal needs to have a number set",
+                    self.line_nr,
+                )
+            })?
+            .map_err(|radix| {
+                ParseError::new(
+                    ParseErrorKind::InvalidLiteral,
+                    format!("failed to parse literal as word with radix `{}`", radix),
+                    self.line_nr,
+                )
+            })?;
+
+        let word = match self.session.endianess {
+            Endianess::Little => word.rotate_left(8),
+            Endianess::Big => word,
+        };
+
+        Ok(word)
     }
 
     /// Adds `amount` to the position of pointer into memory.
@@ -409,8 +415,8 @@ impl<'a, const S: usize> Parser<'a, S> {
         self.inc_memory_position()
     }
 
-    /// Writes big endian `word` into memory at (self.sp)[`Parser::sp`]. Then
-    /// it increments the stack pointer by two.
+    /// Writes little-endian `word` into memory at (self.sp)[`Parser::sp`].
+    /// Then it increments the stack pointer by two.
     ///
     /// # Errors
     ///
@@ -420,24 +426,8 @@ impl<'a, const S: usize> Parser<'a, S> {
     /// # Related
     ///
     /// - [`Parser::inc_memory_position`]
-    fn write_be_word<B: Into<Word>>(&mut self, word: B) -> Result<()> {
+    fn write_word<B: Into<Word>>(&mut self, word: B) -> Result<()> {
         self.memory.write_word(self.sp, word.into());
-        self.add_memory_position(2)
-    }
-
-    /// Writes little endian `word` into memory at (self.sp)[`Parser::sp`]. Then
-    /// it increments the stack pointer by two.
-    ///
-    /// # Errors
-    ///
-    /// This will return an error if an overflow would have occurred while
-    /// incrementing [self.sp](`Parser::sp`).
-    ///
-    /// # Related
-    ///
-    /// - [`Parser::inc_memory_position`]
-    fn write_le_word<B: Into<Word>>(&mut self, word: B) -> Result<()> {
-        self.memory.write_word(self.sp, word.into().rotate_left(8));
         self.add_memory_position(2)
     }
 }
