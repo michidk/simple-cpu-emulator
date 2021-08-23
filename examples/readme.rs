@@ -1,8 +1,7 @@
 use color_eyre::eyre::Result;
 
-use cpu::memory::{Byte, StdMem, Word};
+use cpu::memory::{StdMem, Word};
 use cpu::processor::Processor;
-use cpu::write_instructions;
 use simple_logger::SimpleLogger;
 
 /// The main entrypoit. First instruction should be placed here.

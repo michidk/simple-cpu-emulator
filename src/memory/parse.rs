@@ -109,12 +109,12 @@ macro_rules! parse_number {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Endianess {
+pub enum Endianness {
     Little,
     Big,
 }
 
-impl Default for Endianess {
+impl Default for Endianness {
     fn default() -> Self {
         Self::Big
     }
@@ -122,12 +122,12 @@ impl Default for Endianess {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ParseSession {
-    endianess: Endianess,
+    endianness: Endianness,
 }
 
 impl ParseSession {
-    fn new(endianess: Endianess) -> Self {
-        Self { endianess }
+    fn new(endianness: Endianness) -> Self {
+        Self { endianness }
     }
 }
 
@@ -137,20 +137,20 @@ pub struct Parser<'a, const S: usize> {
     line_nr: usize,
     sp: u16,
     memory: Memory<S>,
-    endianess: Endianess,
+    endianness: Endianness,
     session: ParseSession,
 }
 
 impl<'a, const S: usize> Parser<'a, S> {
     /// Creates a new parse for `data` which will try to populate `memory`.
-    pub fn new(data: &'a str, memory: Memory<S>, endianess: Endianess) -> Self {
+    pub fn new(data: &'a str, memory: Memory<S>, endianness: Endianness) -> Self {
         Self {
             lines: data.lines(),
             line_nr: 0,
             sp: 0,
             memory,
-            endianess,
-            session: ParseSession::new(endianess),
+            endianness,
+            session: ParseSession::new(endianness),
         }
     }
 
@@ -205,22 +205,22 @@ impl<'a, const S: usize> Parser<'a, S> {
     ///
     /// # Examples
     ///
-    /// - `%endianess(le)`
-    /// - `%endianess(be)`
+    /// - `%endianness(le)`
+    /// - `%endianness(be)`
     fn parse_meta_command(&mut self, line: &str) -> Option<Result<()>> {
         let line = line.strip_prefix('%').expect("Line is not a meta command");
 
         log::debug!("[{}] Found meta command", self.line_nr);
 
         match line {
-            "endianess" => {
-                self.session.endianess = self.endianess;
+            "endianness" => {
+                self.session.endianness = self.endianness;
             }
-            "endianess(le)" => {
-                self.session.endianess = Endianess::Little;
+            "endianness(le)" => {
+                self.session.endianness = Endianness::Little;
             }
-            "endianess(be)" => {
-                self.session.endianess = Endianess::Big;
+            "endianness(be)" => {
+                self.session.endianness = Endianness::Big;
             }
             _ => {
                 return Some(Err(ParseError::new(
@@ -250,7 +250,7 @@ impl<'a, const S: usize> Parser<'a, S> {
 
             let line = line.trim();
 
-            let word = propagate!(self.parse_word(line));
+            let word = propagate!(self.parse_word(line, Endianness::Big));
 
             Some(self.write_word(word))
         } else {
@@ -279,7 +279,7 @@ impl<'a, const S: usize> Parser<'a, S> {
 
         log::debug!("[{}] Found address label", self.line_nr);
 
-        let address = propagate!(self.parse_word(line));
+        let address = propagate!(self.parse_word(line, Endianness::Big));
 
         log::debug!("[{}] Address label `0x{:x}`", self.line_nr, address);
 
@@ -319,7 +319,7 @@ impl<'a, const S: usize> Parser<'a, S> {
     /// - `0x22`
     /// - `0o8`
     fn parse_byte(&self, s: &str) -> Result<Byte> {
-        parse_number!(u8: s)
+        let byte = parse_number!(u8: s)
             .ok_or_else(|| {
                 ParseError::new(
                     ParseErrorKind::InvalidLiteral,
@@ -333,7 +333,11 @@ impl<'a, const S: usize> Parser<'a, S> {
                     format!("failed to parse literal as byte with radix `{}`", radix),
                     self.line_nr,
                 )
-            })
+            })?;
+
+        log::debug!("[{}] Parsed byte `0x{:02x}`", self.line_nr, byte);
+
+        Ok(byte)
     }
 
     /// Tries to parse s as a word. The `s` should be the whole byte.
@@ -342,7 +346,7 @@ impl<'a, const S: usize> Parser<'a, S> {
     ///
     /// - `0x22`
     /// - `0o8`
-    fn parse_word(&self, s: &str) -> Result<Word> {
+    fn parse_word(&self, s: &str, target_endianness: Endianness) -> Result<Word> {
         let word = parse_number!(u16: s)
             .ok_or_else(|| {
                 ParseError::new(
@@ -359,9 +363,23 @@ impl<'a, const S: usize> Parser<'a, S> {
                 )
             })?;
 
-        let word = match self.session.endianess {
-            Endianess::Little => word.rotate_left(8),
-            Endianess::Big => word,
+        log::debug!("[{}] Parsed word `0x{:04x}`", self.line_nr, word);
+
+        let word = match (self.session.endianness, target_endianness) {
+            (Endianness::Little, Endianness::Big) | (Endianness::Big, Endianness::Little) => {
+                let new_word = word.rotate_left(8);
+
+                log::debug!(
+                    "[{}] Switched endianness of word `{}` ({:?} -> {:?})",
+                    self.line_nr,
+                    new_word,
+                    self.session.endianness,
+                    target_endianness
+                );
+
+                new_word
+            }
+            _ => word,
         };
 
         Ok(word)
@@ -568,15 +586,18 @@ mod tests {
     fn parse_add_literals() -> Result<()> {
         const ENTRYPOINT: u16 = 0xdead;
         let data = r#"
-            %endianess(be)
+            %endianness(be)
             0xdead:
-                !W 0x0110
-                !W 0x0210
+                %endianness(le)
+                !W 0x1001
+                !W 0x1002
                 !  0x20
                 !  0x01
         "#;
 
         let mem = StdMem::from_str(data).unwrap();
+
+        mem.dump();
 
         assert_eq!(mem.read_byte(ENTRYPOINT + 0), Instruction::PUSHC.into());
         assert_eq!(mem.read_byte(ENTRYPOINT + 1), 1);
@@ -593,10 +614,10 @@ mod tests {
         const ENTRYPOINT: u16 = 0xdead;
         let data = r#"
             0xdead:
-                %endianess(be)
-                !W 0x0110
-                %endianess(le)
-                !W 0x1002
+                %endianness(le)
+                !W 0x1001
+                %endianness(be)
+                !W 0x0210
                 !  0x20
                 !  0x01
         "#;

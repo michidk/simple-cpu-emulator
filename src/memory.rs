@@ -1,6 +1,6 @@
 use std::{path::Path, str::FromStr};
 
-use self::parse::{ParseError, Parser, Endianess};
+use self::parse::{ParseError, Parser, Endianness};
 
 pub mod parse;
 
@@ -73,7 +73,7 @@ impl<const S: usize> FromStr for Memory<S> {
     type Err = Vec<ParseError>;
 
     fn from_str(value: &str) -> std::result::Result<Self, <Self as FromStr>::Err> {
-        let parser = Parser::new(value, Memory::default(), Endianess::default());
+        let parser = Parser::new(value, Memory::default(), Endianness::default());
 
         parser.parse()
     }
