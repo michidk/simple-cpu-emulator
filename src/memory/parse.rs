@@ -578,9 +578,10 @@ mod tests {
     fn parse_add_literals() -> Result<()> {
         const ENTRYPOINT: u16 = 0xdead;
         let data = r#"
+            %endianess(be)
             0xdead:
-                !W 0x1001
-                !W 0x1002
+                !W 0x0110
+                !W 0x0210
                 !  0x20
                 !  0x01
         "#;
@@ -603,9 +604,9 @@ mod tests {
         let data = r#"
             0xdead:
                 %endianess(be)
-                !W 0x1001
+                !W 0x0110
                 %endianess(le)
-                !W 0x0210
+                !W 0x1002
                 !  0x20
                 !  0x01
         "#;
