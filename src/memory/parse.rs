@@ -1,3 +1,4 @@
+//! Parses instructions in the following format:
 //! 0x1fff:
 //!     LOADC 7
 //!     LOADC 8
@@ -21,6 +22,7 @@ macro_rules! propagate {
     };
 }
 
+/// Different error types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ParseErrorKind {
     InvalidAddress { address: usize },
@@ -50,6 +52,7 @@ impl fmt::Display for ParseErrorKind {
     }
 }
 
+/// Errors that can occur while parsing instructions
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
     kind: ParseErrorKind,
@@ -108,6 +111,7 @@ macro_rules! parse_number {
     }};
 }
 
+/// Describes the byte order
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Endianness {
     Little,
@@ -120,6 +124,7 @@ impl Default for Endianness {
     }
 }
 
+/// Instructions are seperated by sessions that might use different endianness
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ParseSession {
     endianness: Endianness,
@@ -131,6 +136,7 @@ impl ParseSession {
     }
 }
 
+/// The main parser struct that keeps references to all components
 #[derive(Debug, Clone)]
 pub struct Parser<'a, const S: usize> {
     lines: Lines<'a>,
