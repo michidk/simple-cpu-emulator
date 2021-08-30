@@ -128,7 +128,7 @@ impl Processor {
                 memory.write_byte(self.sp, value);
                 self.sp += 1;
 
-                debug!("LOADC {}", value);
+                debug!("PUSHC {}", value);
             }
             Instruction::DUP => {
                 let value = memory.read_byte(self.sp - 1);
